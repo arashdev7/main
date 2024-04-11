@@ -1,7 +1,52 @@
-echo "# WIDS" >> README.md
-git init
-git add README.md
-git commit -m "first commit"
-git branch -M main
-git remote add origin https://github.com/arashdev7/WIDS.git
-git push -u origin main
+import requests
+from bs4 import BeautifulSoup
+from urllib.parse import urlparse, urljoin
+
+links = set()
+
+def ext_links(url):
+
+    global links
+    
+    response = requests.get(url)
+    if response.status_code != 200:
+        return
+    sp  = BeautifulSoup(response.content, 'html.parser')
+    
+    for link in sp.find_all('a', href=True):
+        href = link['href'].strip()
+        if href.startswith('http'): 
+            print("External link:", href)
+        else:
+            href = urljoin(url, href)
+            links.add(href)
+    
+    for t in sp.find_all(['img', 'script', 'link'], src=True):
+        src = t['src'].strip()
+        if src.startswith('http'):  
+            print("An external link is :", src)
+        else:
+            src = urljoin(url, src)
+            links.add(src)
+
+def crawl_int_links(url):
+    
+    global links
+    
+    ext_links(url)
+    
+    parsed_url = urlparse(url)
+    base_url = parsed_url.scheme + '://' + parsed_url.netloc
+    
+    int_links = {link for link in links if urlparse(link).netloc == parsed_url.netloc}
+    
+    for link in int_links:
+        if link not in links:
+            crawl_int_links(link)
+
+url_q = 'https://krittikaiitb.github.io'
+crawl_int_links(url_q)
+
+print("The unique links found are :")
+for link in links:
+    print(link)
